@@ -5,4 +5,4 @@ pluginManagement {
         mavenCentral()
     }
 }
-rootProject.name = 'chill-zone-multisummon'
+rootProject.name = 'chill-zone-multi-summon'

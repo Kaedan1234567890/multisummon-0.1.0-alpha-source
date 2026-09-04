@@ -1,29 +1,44 @@
-# Chill Zone Multi Summon
+# Chill Zone Multi Summon 0.1.0-alpha-fix3
 
 Server-side Fabric mod for Minecraft 26.2.
 
-Command:
-`/msummon <entity> <amount> [x y z]`
+## Command
+
+```text
+/multisummon <entity> <count> [x y z]
+```
 
 Examples:
-- `/msummon creeper 25`
-- `/msummon cow 10 ~ ~ ~`
-- `/msummon skeleton 50 100 64 -200`
 
-Features:
-- Entity autocomplete from Minecraft's entity registry.
-- Vanilla-style coordinate argument, including `~ ~ ~`.
-- No coordinates = your current position.
-- All entities spawn at the exact same position.
-- Maximum 100 entities per command.
-- Owner-only via LuckPerms permission:
-  `chillzonemultisummon.command.msummon`
+```text
+/multisummon minecraft:creeper 25
+/multisummon minecraft:cow 10 ~ ~ ~
+/multisummon minecraft:zombie 50 100 64 -20
+```
 
-Recommended permissions:
-`/lp group owner permission set chillzonemultisummon.command.msummon true`
-`/lp group admin permission set chillzonemultisummon.command.msummon false`
-`/lp group mod permission set chillzonemultisummon.command.msummon false`
-`/lp group member permission set chillzonemultisummon.command.msummon false`
+- Entity names autocomplete from Minecraft's entity registry.
+- Coordinates use Minecraft's normal coordinate argument, including `~` relative coordinates.
+- If coordinates are omitted, entities spawn at the command source's position.
+- All entities are intentionally spawned on the exact same coordinates.
+- Maximum count per command: 500.
+
+## LuckPerms permission
+
+```text
+chillzonemultisummon.command.multisummon
+```
+
+Owner-only example:
+
+```text
+/lp group owner permission set chillzonemultisummon.command.multisummon true
+/lp group admin permission set chillzonemultisummon.command.multisummon false
+/lp group mod permission set chillzonemultisummon.command.multisummon false
+/lp group member permission set chillzonemultisummon.command.multisummon false
+```
+
+The server console is also permitted to use the command.
 
 
-Fix 2: uses the same Minecraft 26.2 Fabric Loom build pattern as the known-working Chill Zone mods, avoiding the unavailable explicit Mojang mappings lookup.
+## Fix 3
+Updated Minecraft 26.2 resource identifiers from the removed `ResourceLocation` class to `net.minecraft.resources.Identifier`.

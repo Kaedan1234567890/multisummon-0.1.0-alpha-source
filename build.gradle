@@ -29,7 +29,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.release = 25
+    it.options.release = 25
 }
 
 java {

@@ -1,5 +1,6 @@
 package com.chillzone.multisummon;
 
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ModInitializer;
@@ -9,112 +10,98 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
+import net.minecraft.commands.arguments.coordinates.Coordinates;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.Locale;
-
-public final class ChillZoneMultiSummon implements ModInitializer {
-    public static final String PERMISSION = "chillzonemultisummon.command.msummon";
-    private static final int MAX_AMOUNT = 100;
+public class ChillZoneMultiSummon implements ModInitializer {
+    public static final String PERMISSION = "chillzonemultisummon.command.multisummon";
+    public static final int MAX_COUNT = 500;
 
     @Override
     public void onInitialize() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(
-                Commands.literal("msummon")
-                    .requires(ChillZoneMultiSummon::hasPermission)
-                    .then(
-                        Commands.argument("entity", StringArgumentType.word())
-                            .suggests((context, builder) -> {
-                                String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-                                for (ResourceLocation id : BuiltInRegistries.ENTITY_TYPE.keySet()) {
-                                    String full = id.toString();
-                                    String shortId = id.getNamespace().equals("minecraft") ? id.getPath() : full;
-                                    if (shortId.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-                                        builder.suggest(shortId);
-                                    } else if (full.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-                                        builder.suggest(full);
-                                    }
-                                }
-                                return builder.buildFuture();
-                            })
-                            .then(
-                                Commands.argument("amount", IntegerArgumentType.integer(1, MAX_AMOUNT))
-                                    .executes(context -> {
-                                        CommandSourceStack source = context.getSource();
-                                        String entity = StringArgumentType.getString(context, "entity");
-                                        int amount = IntegerArgumentType.getInteger(context, "amount");
-                                        return summonMany(source, entity, amount, source.getPosition());
-                                    })
-                                    .then(
-                                        Commands.argument("pos", Vec3Argument.vec3())
-                                            .executes(context -> {
-                                                CommandSourceStack source = context.getSource();
-                                                String entity = StringArgumentType.getString(context, "entity");
-                                                int amount = IntegerArgumentType.getInteger(context, "amount");
-                                                Vec3 pos = Vec3Argument.getVec3(context, "pos");
-                                                return summonMany(source, entity, amount, pos);
-                                            })
-                                    )
-                            )
-                    )
-            );
+            dispatcher.register(Commands.literal("multisummon")
+                .requires(source -> hasPermission(source, PERMISSION))
+                .then(Commands.argument("entity", StringArgumentType.word())
+                    .suggests((ctx, builder) -> SharedSuggestionProvider.suggestResource(
+                        BuiltInRegistries.ENTITY_TYPE.keySet(), builder))
+                    .then(Commands.argument("count", IntegerArgumentType.integer(1, MAX_COUNT))
+                        .executes(ctx -> summon(
+                            ctx.getSource(),
+                            StringArgumentType.getString(ctx, "entity"),
+                            IntegerArgumentType.getInteger(ctx, "count"),
+                            null))
+                        .then(Commands.argument("pos", Vec3Argument.vec3())
+                            .executes(ctx -> summon(
+                                ctx.getSource(),
+                                StringArgumentType.getString(ctx, "entity"),
+                                IntegerArgumentType.getInteger(ctx, "count"),
+                                Vec3Argument.getVec3(ctx, "pos")))))));
         });
     }
 
-    private static int summonMany(CommandSourceStack source, String requestedEntity, int amount, Vec3 position) {
-        ResourceLocation entityId = ResourceLocation.tryParse(
-            requestedEntity.contains(":") ? requestedEntity : "minecraft:" + requestedEntity
-        );
-
-        if (entityId == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(entityId)) {
-            source.sendFailure(Component.literal("Unknown entity: " + requestedEntity));
-            return 0;
+    private static boolean hasPermission(CommandSourceStack source, String permission) {
+        // Console is allowed so the command remains usable from the server console.
+        if (!(source.getEntity() instanceof ServerPlayer player)) {
+            return true;
         }
-
-        String cmd = "summon " + entityId + " " + position.x + " " + position.y + " " + position.z;
-        int successful = 0;
-
-        for (int i = 0; i < amount; i++) {
-            try {
-                int result = source.getServer().getCommands().performPrefixedCommand(source, cmd);
-                if (result > 0) successful++;
-            } catch (Exception ignored) {
-                break;
-            }
-        }
-
-        if (successful == 0) {
-            source.sendFailure(Component.literal(
-                "Could not summon " + requestedEntity + ". That entity may not be summonable."
-            ));
-            return 0;
-        }
-
-        final int count = successful;
-        source.sendSuccess(
-            () -> Component.literal("Summoned " + count + "x " + entityId + " at the same position."),
-            false
-        );
-        return successful;
-    }
-
-    private static boolean hasPermission(CommandSourceStack source) {
-        if (source.getEntity() == null) return true;
-        if (!(source.getEntity() instanceof ServerPlayer player)) return false;
 
         try {
             LuckPerms luckPerms = LuckPermsProvider.get();
             User user = luckPerms.getUserManager().getUser(player.getUUID());
-            return user != null && user.getCachedData().getPermissionData()
-                .checkPermission(PERMISSION).asBoolean();
+            return user != null && user.getCachedData().getPermissionData().checkPermission(permission).asBoolean();
         } catch (IllegalStateException ignored) {
-            return false;
+            return source.hasPermission(4);
         }
+    }
+
+    private static int summon(CommandSourceStack source, String entityName, int count, Vec3 requestedPos) {
+        Identifier id;
+        try {
+            id = Identifier.parse(entityName);
+        } catch (Exception ignored) {
+            source.sendFailure(Component.literal("Unknown entity: " + entityName));
+            return 0;
+        }
+        if (id == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
+            source.sendFailure(Component.literal("Unknown entity: " + entityName));
+            return 0;
+        }
+
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
+        if (type == null) {
+            source.sendFailure(Component.literal("Unknown entity: " + entityName));
+            return 0;
+        }
+
+        Vec3 pos = requestedPos != null ? requestedPos : source.getPosition();
+        int spawned = 0;
+
+        for (int i = 0; i < count; i++) {
+            var entity = type.create(source.getLevel(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+            if (entity == null) {
+                continue;
+            }
+
+            // Fix 2: every entity is placed at the exact same coordinates, with no random spread.
+            entity.snapTo(pos.x, pos.y, pos.z, entity.getYRot(), entity.getXRot());
+            if (source.getLevel().addFreshEntity(entity)) {
+                spawned++;
+            }
+        }
+
+        final int total = spawned;
+        source.sendSuccess(() -> Component.literal(
+            "Summoned " + total + " x " + id + " at " +
+            String.format("%.2f %.2f %.2f", pos.x, pos.y, pos.z) + "."), true);
+
+        return spawned > 0 ? Command.SINGLE_SUCCESS : 0;
     }
 }
