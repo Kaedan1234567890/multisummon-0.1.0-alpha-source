@@ -24,3 +24,6 @@ Recommended permissions:
 `/lp group admin permission set chillzonemultisummon.command.msummon false`
 `/lp group mod permission set chillzonemultisummon.command.msummon false`
 `/lp group member permission set chillzonemultisummon.command.msummon false`
+
+
+Fix 2: uses the same Minecraft 26.2 Fabric Loom build pattern as the known-working Chill Zone mods, avoiding the unavailable explicit Mojang mappings lookup.
