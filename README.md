@@ -1,4 +1,4 @@
-# Chill Zone Multi Summon 0.1.0-alpha-fix3
+# Chill Zone Multi Summon 0.1.0-alpha-fix4
 
 Server-side Fabric mod for Minecraft 26.2.
 
@@ -42,3 +42,7 @@ The server console is also permitted to use the command.
 
 ## Fix 3
 Updated Minecraft 26.2 resource identifiers from the removed `ResourceLocation` class to `net.minecraft.resources.Identifier`.
+
+
+## Fix 4
+Removed the obsolete Minecraft 26.2 `CommandSourceStack#hasPermission(int)` fallback. Player access now uses the LuckPerms node only, while console remains allowed.

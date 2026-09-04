@@ -8,18 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '25'
-
       - uses: gradle/actions/setup-gradle@v4
-
-      - name: Build
-        run: gradle --no-daemon clean build
-
+      - run: gradle build
       - uses: actions/upload-artifact@v4
         with:
-          name: chill-zone-multi-summon-fix4
+          name: chill-zone-multi-summon
           path: build/libs/*.jar

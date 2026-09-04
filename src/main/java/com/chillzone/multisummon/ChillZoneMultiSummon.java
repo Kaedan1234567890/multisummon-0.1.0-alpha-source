@@ -58,7 +58,9 @@ public class ChillZoneMultiSummon implements ModInitializer {
             User user = luckPerms.getUserManager().getUser(player.getUUID());
             return user != null && user.getCachedData().getPermissionData().checkPermission(permission).asBoolean();
         } catch (IllegalStateException ignored) {
-            return source.hasPermission(4);
+            // Minecraft 26.2 no longer exposes CommandSourceStack#hasPermission(int).
+            // If LuckPerms is unavailable, fail closed for player sources.
+            return false;
         }
     }
 
